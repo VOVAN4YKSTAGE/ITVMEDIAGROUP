@@ -23,10 +23,9 @@ jobs:
           # 2. build.gradle.kts (root)
           echo 'plugins { id("com.android.application") version "8.2.2" apply false; id("org.jetbrains.kotlin.android") version "1.9.22" apply false }' > build.gradle.kts
 
-          # 3. gradle.properties (Фікс сумісності та AndroidX)
+          # 3. gradle.properties
           echo 'android.useAndroidX=true' > gradle.properties
           echo 'android.enableJetifier=true' >> gradle.properties
-          echo 'org.gradle.warning.mode=all' >> gradle.properties
 
           # 4. app/build.gradle.kts
           cat << 'EOF' > app/build.gradle.kts
@@ -273,7 +272,7 @@ jobs:
           }
           EOF
 
-          # 10. Явне створення обгортки для сумісності з Gradle 9+
+          # 10. Gradle Wrapper properties
           echo 'distributionBase=GRADLE_USER_HOME' > gradle/wrapper/gradle-wrapper.properties
           echo 'distributionPath=wrapper/dists' >> gradle/wrapper/gradle-wrapper.properties
           echo 'distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip' >> gradle/wrapper/gradle-wrapper.properties
@@ -286,6 +285,9 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
           cache: 'gradle'
+
+      - name: Setup Gradle Wrapper
+        run: gradle wrapper
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
