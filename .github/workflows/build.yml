@@ -27,7 +27,7 @@ jobs:
           echo 'android.enableJetifier=true' >> gradle.properties
           echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> gradle.properties
 
-          # 4. app/build.gradle.kts (Підтримка від API 21 / Android 5.0 + HLS)
+          # 4. app/build.gradle.kts
           cat << 'EOF' > app/build.gradle.kts
           plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
           android {
@@ -86,7 +86,7 @@ jobs:
           </manifest>
           EOF
 
-          # 7. MainActivity.kt
+          # 7. MainActivity.kt (з виправленим імпортом ImageView)
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MainActivity.kt
           package com.itv.mediagroup
 
@@ -96,6 +96,7 @@ jobs:
           import android.os.Build
           import android.os.Bundle
           import android.widget.ImageButton
+          import android.widget.ImageView
           import android.widget.LinearLayout
           import androidx.appcompat.app.AppCompatActivity
           import androidx.core.app.ActivityCompat
@@ -122,7 +123,7 @@ jobs:
                   val tvButton = ImageButton(this).apply {
                       layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40, 40, 40, 20) }
                       setImageResource(resources.getIdentifier("logo_itv", "drawable", packageName))
-                      scaleType = ImageButton.ScaleType.FIT_CENTER
+                      scaleType = ImageView.ScaleType.FIT_CENTER
                       setBackgroundColor(0xFFE50914.toInt())
                       setOnClickListener { startPlayer("https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8", true) }
                   }
@@ -130,7 +131,7 @@ jobs:
                   val radioButton = ImageButton(this).apply {
                       layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40, 20, 40, 40) }
                       setImageResource(resources.getIdentifier("logo_ritm", "drawable", packageName))
-                      scaleType = ImageButton.ScaleType.FIT_CENTER
+                      scaleType = ImageView.ScaleType.FIT_CENTER
                       setBackgroundColor(0xFFFFFFFF.toInt())
                       setOnClickListener { startPlayer("http://31.131.18.66:8000/ritm-mp3-192", false) }
                   }
