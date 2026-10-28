@@ -12,8 +12,6 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/itv/mediagroup
           mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/res/drawable
-          mkdir -p app/src/main/res/mipmap-hdpi
 
           # 1. settings.gradle.kts
           echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
@@ -26,10 +24,10 @@ jobs:
 
           # 3. gradle.properties
           echo 'android.useAndroidX=true' > gradle.properties
-          echo 'android.enableJetifier=true' > gradle.properties
+          echo 'android.enableJetifier=true' >> gradle.properties
           echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> gradle.properties
 
-          # 4. app/build.gradle.kts (Підтримка від API 21 / Android 5.0)
+          # 4. app/build.gradle.kts (Підтримка від API 21 / Android 5.0 + HLS)
           cat << 'EOF' > app/build.gradle.kts
           plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
           android {
@@ -88,7 +86,7 @@ jobs:
           </manifest>
           EOF
 
-          # 7. MainActivity.kt (Головне меню з кнопками)
+          # 7. MainActivity.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MainActivity.kt
           package com.itv.mediagroup
 
@@ -157,8 +155,8 @@ jobs:
           }
           EOF
 
-          # 8. PlayerActivity.kt (З кнопкою назад, повноекранним режимом та фоновим логотипом для радіо)
-          cat << 'EOF' > app/src/main/java/com/itv.mediagroup/PlayerActivity.kt
+          # 8. PlayerActivity.kt
+          cat << 'EOF' > app/src/main/java/com/itv/mediagroup/PlayerActivity.kt
           package com.itv.mediagroup
 
           import android.content.Context
@@ -196,7 +194,6 @@ jobs:
 
                   val isVideo = intent.getBooleanExtra("IS_VIDEO", true)
 
-                  // Для відео тримаємо екран активним, для радіо даємо працювати автоблокуванню системи
                   if (isVideo) {
                       window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                   }
@@ -215,7 +212,6 @@ jobs:
                   }
                   rootLayout.addView(playerView)
 
-                  // Якщо це радіо — виводимо напівпрозорий логотип по центру
                   if (!isVideo) {
                       val logoView = ImageView(this).apply {
                           layoutParams = FrameLayout.LayoutParams(400, 400, Gravity.CENTER)
@@ -225,7 +221,6 @@ jobs:
                       rootLayout.addView(logoView)
                   }
 
-                  // Кнопка повернення у верхньому лівому кутку
                   val backButton = Button(this).apply {
                       layoutParams = FrameLayout.LayoutParams(120, 120, Gravity.TOP or Gravity.START).apply {
                           setMargins(30, 30, 0, 0)
@@ -238,7 +233,6 @@ jobs:
                   }
                   rootLayout.addView(backButton)
 
-                  // Кнопка повноекранного режиму (тільки для відео)
                   if (isVideo) {
                       val fullScreenButton = Button(this).apply {
                           layoutParams = FrameLayout.LayoutParams(160, 120, Gravity.TOP or Gravity.END).apply {
@@ -329,7 +323,7 @@ jobs:
           }
           EOF
 
-          # 9. MediaPlaybackService.kt (Фонове радіо)
+          # 9. MediaPlaybackService.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MediaPlaybackService.kt
           package com.itv.mediagroup
 
