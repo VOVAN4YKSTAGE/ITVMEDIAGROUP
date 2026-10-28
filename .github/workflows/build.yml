@@ -8,12 +8,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Generate Project Structure and Code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate Project Structure and Move Resources
         run: |
           mkdir -p app/src/main/java/com/itv/mediagroup
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-hdpi
+
+          # Автоматично переносимо ваші завантажені картинки у правильні папки Android
+          if [ -f "logo_itv.png" ]; then cp logo_itv.png app/src/main/res/drawable/; fi
+          if [ -f "logo_ritm.png" ]; then cp logo_ritm.png app/src/main/res/drawable/; fi
+          if [ -f "ic_launcher.png" ]; then cp ic_launcher.png app/src/main/res/mipmap-hdpi/; fi
 
           # 1. settings.gradle.kts
           echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
@@ -67,6 +76,7 @@ jobs:
               <application 
                   android:allowBackup="true" 
                   android:label="ITVMEDIAGROUP" 
+                  android:icon="@mipmap/ic_launcher"
                   android:theme="@style/Theme.ITVMEDIAGROUP"
                   android:usesCleartextTraffic="true">
                   
@@ -88,7 +98,7 @@ jobs:
           </manifest>
           EOF
 
-          # 7. activity_main.xml (Класична розмітка для головного екрана)
+          # 7. activity_main.xml (Інтерфейс з вашими логотипами)
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -123,7 +133,7 @@ jobs:
           </LinearLayout>
           EOF
 
-          # 8. activity_player.xml (Класична розмітка плеєра з кнопками керування)
+          # 8. activity_player.xml
           cat << 'EOF' > app/src/main/res/layout/activity_player.xml
           <?xml version="1.0" encoding="utf-8"?>
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
