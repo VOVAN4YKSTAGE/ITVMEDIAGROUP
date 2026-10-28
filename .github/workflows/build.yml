@@ -12,6 +12,8 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/itv/mediagroup
           mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-hdpi
 
           # 1. settings.gradle.kts
           echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
@@ -24,16 +26,16 @@ jobs:
 
           # 3. gradle.properties
           echo 'android.useAndroidX=true' > gradle.properties
-          echo 'android.enableJetifier=true' >> gradle.properties
+          echo 'android.enableJetifier=true' > gradle.properties
           echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> gradle.properties
 
-          # 4. app/build.gradle.kts (З підтримкою HLS-потоків телебачення)
+          # 4. app/build.gradle.kts (Підтримка від API 21 / Android 5.0)
           cat << 'EOF' > app/build.gradle.kts
           plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
           android {
               namespace = "com.itv.mediagroup"
               compileSdk = 34
-              defaultConfig { applicationId = "com.itv.mediagroup"; minSdk = 26; targetSdk = 34; versionCode = 1; versionName = "1.0" }
+              defaultConfig { applicationId = "com.itv.mediagroup"; minSdk = 21; targetSdk = 34; versionCode = 1; versionName = "1.0" }
               buildTypes { release { isMinifyEnabled = false } }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
               kotlinOptions { jvmTarget = "17" }
@@ -86,7 +88,7 @@ jobs:
           </manifest>
           EOF
 
-          # 7. MainActivity.kt
+          # 7. MainActivity.kt (Головне меню з кнопками)
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MainActivity.kt
           package com.itv.mediagroup
 
@@ -95,7 +97,7 @@ jobs:
           import android.content.pm.PackageManager
           import android.os.Build
           import android.os.Bundle
-          import android.widget.Button
+          import android.widget.ImageButton
           import android.widget.LinearLayout
           import androidx.appcompat.app.AppCompatActivity
           import androidx.core.app.ActivityCompat
@@ -119,20 +121,18 @@ jobs:
                       setBackgroundColor(0xFF121212.toInt())
                   }
 
-                  val tvButton = Button(this).apply {
+                  val tvButton = ImageButton(this).apply {
                       layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40, 40, 40, 20) }
-                      text = "ITV Media Group\n(Телебачення)"
-                      textSize = 22f
-                      setTextColor(0xFFFFFFFF.toInt())
+                      setImageResource(resources.getIdentifier("logo_itv", "drawable", packageName))
+                      scaleType = ImageButton.ScaleType.FIT_CENTER
                       setBackgroundColor(0xFFE50914.toInt())
                       setOnClickListener { startPlayer("https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8", true) }
                   }
 
-                  val radioButton = Button(this).apply {
+                  val radioButton = ImageButton(this).apply {
                       layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40, 20, 40, 40) }
-                      text = "Радіо РИТМ\n(FM)"
-                      textSize = 22f
-                      setTextColor(0xFF000000.toInt())
+                      setImageResource(resources.getIdentifier("logo_ritm", "drawable", packageName))
+                      scaleType = ImageButton.ScaleType.FIT_CENTER
                       setBackgroundColor(0xFFFFFFFF.toInt())
                       setOnClickListener { startPlayer("http://31.131.18.66:8000/ritm-mp3-192", false) }
                   }
@@ -157,17 +157,23 @@ jobs:
           }
           EOF
 
-          # 8. PlayerActivity.kt
-          cat << 'EOF' > app/src/main/java/com/itv/mediagroup/PlayerActivity.kt
+          # 8. PlayerActivity.kt (З кнопкою назад, повноекранним режимом та фоновим логотипом для радіо)
+          cat << 'EOF' > app/src/main/java/com/itv.mediagroup/PlayerActivity.kt
           package com.itv.mediagroup
 
           import android.content.Context
+          import android.content.pm.ActivityInfo
           import android.media.AudioManager
           import android.net.Uri
           import android.os.Bundle
+          import android.view.Gravity
           import android.view.MotionEvent
           import android.view.View
+          import android.view.ViewGroup
           import android.view.WindowManager
+          import android.widget.Button
+          import android.widget.FrameLayout
+          import android.widget.ImageView
           import androidx.appcompat.app.AppCompatActivity
           import androidx.media3.common.MediaItem
           import androidx.media3.exoplayer.DefaultLoadControl
@@ -183,21 +189,78 @@ jobs:
               private var baseVolume = 0
               private var baseBrightness = 0.5f
               private var screenWidth = 0
+              private var isFullScreen = true
 
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
-                  window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                  window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN 
-                          or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+
+                  val isVideo = intent.getBooleanExtra("IS_VIDEO", true)
+
+                  // Для відео тримаємо екран активним, для радіо даємо працювати автоблокуванню системи
+                  if (isVideo) {
+                      window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                  }
 
                   audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
                   screenWidth = resources.displayMetrics.widthPixels
 
+                  val rootLayout = FrameLayout(this).apply {
+                      layoutParams = ViewGroup.LayoutParams(-1, -1)
+                      setBackgroundColor(0xFF000000.toInt())
+                  }
+
                   playerView = PlayerView(this).apply {
-                      layoutParams = WindowManager.LayoutParams(-1, -1)
+                      layoutParams = FrameLayout.LayoutParams(-1, -1)
                       useController = true
                   }
-                  setContentView(playerView)
+                  rootLayout.addView(playerView)
+
+                  // Якщо це радіо — виводимо напівпрозорий логотип по центру
+                  if (!isVideo) {
+                      val logoView = ImageView(this).apply {
+                          layoutParams = FrameLayout.LayoutParams(400, 400, Gravity.CENTER)
+                          setImageResource(resources.getIdentifier("logo_ritm", "drawable", packageName))
+                          alpha = 0.4f
+                      }
+                      rootLayout.addView(logoView)
+                  }
+
+                  // Кнопка повернення у верхньому лівому кутку
+                  val backButton = Button(this).apply {
+                      layoutParams = FrameLayout.LayoutParams(120, 120, Gravity.TOP or Gravity.START).apply {
+                          setMargins(30, 30, 0, 0)
+                      }
+                      text = "←"
+                      textSize = 24f
+                      setTextColor(0xFFFFFFFF.toInt())
+                      setBackgroundColor(0x55000000.toInt())
+                      setOnClickListener { finish() }
+                  }
+                  rootLayout.addView(backButton)
+
+                  // Кнопка повноекранного режиму (тільки для відео)
+                  if (isVideo) {
+                      val fullScreenButton = Button(this).apply {
+                          layoutParams = FrameLayout.LayoutParams(160, 120, Gravity.TOP or Gravity.END).apply {
+                              setMargins(0, 30, 30, 0)
+                          }
+                          text = "[ ⛶ ]"
+                          textSize = 16f
+                          setTextColor(0xFFFFFFFF.toInt())
+                          setBackgroundColor(0x55000000.toInt())
+                          setOnClickListener {
+                              isFullScreen = !isFullScreen
+                              requestedOrientation = if (isFullScreen) {
+                                  ActivityInfo.SCREEN_ORIENTATION_SENSOR
+                              } else {
+                                  ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                              }
+                          }
+                      }
+                      rootLayout.addView(fullScreenButton)
+                  }
+
+                  setContentView(rootLayout)
 
                   val url = intent.getStringExtra("URL") ?: return
                   val loadControl = DefaultLoadControl.Builder()
@@ -266,7 +329,7 @@ jobs:
           }
           EOF
 
-          # 9. MediaPlaybackService.kt
+          # 9. MediaPlaybackService.kt (Фонове радіо)
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MediaPlaybackService.kt
           package com.itv.mediagroup
 
