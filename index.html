@@ -30,7 +30,7 @@
         }
         .btn-media {
             flex: 1;
-            margin: 20px;
+            margin: 15px;
             border: none;
             border-radius: 15px;
             display: flex;
@@ -38,14 +38,24 @@
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            /* Плавна анімація при натисканні */
+            transition: transform 0.1s ease;
+        }
+        .btn-media:active {
+            transform: scale(0.98);
         }
         .btn-tv { background-color: #E50914; }
         .btn-radio { background-color: #FFFFFF; }
+        
+        /* Автоматичне масштабування логотипів на головному екрані */
         .btn-media img {
-            max-width: 70%;
-            max-height: 70%;
+            width: 100%;
+            height: 100%;
+            max-width: 80%;
+            max-height: 75%;
             object-fit: contain;
         }
+
         /* Екран плеєра */
         #player-screen {
             display: none;
@@ -63,7 +73,7 @@
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.3);
             color: white;
             border: none;
             border-radius: 50%;
@@ -72,16 +82,22 @@
             z-index: 101;
             cursor: pointer;
         }
+        
+        /* Автоматичне адаптивне лого радіо в режимі відтворення */
         .radio-bg-logo {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 250px; height: 250px;
+            width: 40vw; 
+            height: 40vw;
+            max-width: 250px;
+            max-height: 250px;
+            object-fit: contain;
             opacity: 0.4;
             pointer-events: none;
         }
     </style>
-    <!-- Підключаємо бібліотеку HLS.js для відтворення .m3u8 на iOS/Safari -->
+    <!-- Підключаємо бібліотеку HLS.js для відтворення .m3u8 потоків на iOS/Safari -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -153,7 +169,7 @@
             mainMenu.style.display = 'flex';
         }
 
-        // Реєстрація Service Worker для PWA
+        // Реєстрація Service Worker для підтримки PWA
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
         }
