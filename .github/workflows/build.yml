@@ -27,7 +27,7 @@ jobs:
           echo 'android.enableJetifier=true' >> gradle.properties
           echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> gradle.properties
 
-          # 4. app/build.gradle.kts (Додано підтримку HLS для відеопотоків)
+          # 4. app/build.gradle.kts (З підтримкою HLS-потоків телебачення)
           cat << 'EOF' > app/build.gradle.kts
           plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
           android {
@@ -157,7 +157,7 @@ jobs:
           }
           EOF
 
-          # 8. PlayerActivity.kt (з виправленим обробітком потоків)
+          # 8. PlayerActivity.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/PlayerActivity.kt
           package com.itv.mediagroup
 
@@ -310,7 +310,7 @@ jobs:
         run: ./gradlew assembleDebug --warning-mode all
 
       - name: Upload Finished APK
-        uses:-actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: ITVMEDIAGROUP-app
           path: app/build/outputs/apk/debug/app-debug.apk
