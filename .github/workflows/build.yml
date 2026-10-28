@@ -22,7 +22,7 @@ jobs:
           # 2. build.gradle.kts (root)
           echo 'plugins { id("com.android.application") version "8.2.2" apply false; id("org.jetbrains.kotlin.android") version "1.9.22" apply false }' > build.gradle.kts
 
-          # 3. gradle.properties (Фікс AndroidX та налаштування пам'яті)
+          # 3. gradle.properties
           echo 'android.useAndroidX=true' > gradle.properties
           echo 'android.enableJetifier=true' >> gradle.properties
           echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> gradle.properties
@@ -51,7 +51,7 @@ jobs:
           # 5. Themes
           echo '<resources><style name="Theme.ITVMEDIAGROUP" parent="Theme.MaterialComponents.DayNight.NoActionBar" /></resources>' > app/src/main/res/values/themes.xml
 
-          # 6. AndroidManifest.xml
+          # 6. AndroidManifest.xml (З виправленням Cleartext для HTTP-радіо та дозволом на сповіщення)
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -59,15 +59,23 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
               <uses-permission android:name="android.permission.WAKE_LOCK" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-              <application android:allowBackup="true" android:label="ITVMEDIAGROUP" android:theme="@style/Theme.ITVMEDIAGROUP">
+              <application 
+                  android:allowBackup="true" 
+                  android:label="ITVMEDIAGROUP" 
+                  android:theme="@style/Theme.ITVMEDIAGROUP"
+                  android:usesCleartextTraffic="true">
+                  
                   <activity android:name=".MainActivity" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
+                  
                   <activity android:name=".PlayerActivity" android:configChanges="orientation|screenSize|layoutDirection|screenLayout" android:exported="false" />
+                  
                   <service android:name=".MediaPlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="false">
                       <intent-filter>
                           <action android:name="androidx.media3.session.MediaSessionService" />
@@ -77,20 +85,32 @@ jobs:
           </manifest>
           EOF
 
-          # 7. MainActivity.kt
+          # 7. MainActivity.kt (з запитом дозволу на сповіщення для Android 13+)
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MainActivity.kt
           package com.itv.mediagroup
 
+          import android.Manifest
           import android.content.Intent
+          import android.content.pm.PackageManager
+          import android.os.Build
           import android.os.Bundle
           import android.widget.Button
           import android.widget.LinearLayout
           import androidx.appcompat.app.AppCompatActivity
+          import androidx.core.app.ActivityCompat
+          import androidx.core.content.ContextCompat
           import kotlin.system.exitProcess
 
           class MainActivity : AppCompatActivity() {
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                      if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                          ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+                      }
+                  }
+
                   val root = LinearLayout(this).apply {
                       orientation = LinearLayout.VERTICAL
                       layoutParams = LinearLayout.LayoutParams(-1, -1)
@@ -211,7 +231,7 @@ jobs:
                           val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                           if (startX < screenWidth / 2) {
                               val deltaBrightness = deltaY / playerView.height
-                              var newBrightness = baseBrightness + deltaBrightness
+                          var newBrightness = baseBrightness + deltaBrightness
                               if (newBrightness > 1.0f) newBrightness = 1.0f
                               if (newBrightness < 0.01f) newBrightness = 0.01f
                               val lp = window.attributes
