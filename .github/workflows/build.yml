@@ -19,7 +19,6 @@ jobs:
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/mipmap-hdpi
 
-          # Автоматично переносимо ваші завантажені картинки у правильні папки Android
           if [ -f "logo_itv.png" ]; then cp logo_itv.png app/src/main/res/drawable/; fi
           if [ -f "logo_ritm.png" ]; then cp logo_ritm.png app/src/main/res/drawable/; fi
           if [ -f "ic_launcher.png" ]; then cp ic_launcher.png app/src/main/res/mipmap-hdpi/; fi
@@ -98,7 +97,7 @@ jobs:
           </manifest>
           EOF
 
-          # 7. activity_main.xml (Інтерфейс з вашими логотипами)
+          # 7. activity_main.xml
           cat << 'EOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -133,7 +132,7 @@ jobs:
           </LinearLayout>
           EOF
 
-          # 8. activity_player.xml
+          # 8. activity_player.xml (Більш прозорі кнопки)
           cat << 'EOF' > app/src/main/res/layout/activity_player.xml
           <?xml version="1.0" encoding="utf-8"?>
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -166,7 +165,7 @@ jobs:
                   android:text="◀"
                   android:textSize="20sp"
                   android:textColor="#FFFFFF"
-                  android:background="#88000000" />
+                  android:background="#33000000" />
 
               <Button
                   android:id="@+id/btnFullScreen"
@@ -178,7 +177,7 @@ jobs:
                   android:text="⛶"
                   android:textSize="18sp"
                   android:textColor="#FFFFFF"
-                  android:background="#88000000" />
+                  android:background="#33000000" />
 
           </FrameLayout>
           EOF
@@ -238,6 +237,7 @@ jobs:
           package com.itv.mediagroup
 
           import android.content.Context
+          import android.content.Intent
           import android.content.pm.ActivityInfo
           import android.media.AudioManager
           import android.net.Uri
@@ -280,6 +280,13 @@ jobs:
                   } else {
                       radioLogo.visibility = View.VISIBLE
                       btnFullScreen.visibility = View.GONE
+                      // Запускаємо фоновий сервіс, щоб радіо грало при вимкненому екрані
+                      val serviceIntent = Intent(this, MediaPlaybackService::class.java)
+                      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                          startForegroundService(serviceIntent)
+                      } else {
+                          startService(serviceIntent)
+                      }
                   }
 
                   audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -357,8 +364,10 @@ jobs:
 
               override fun onDestroy() {
                   super.onDestroy()
-                  player?.release()
-                  player = null
+                  if (intent.getBooleanExtra("IS_VIDEO", true)) {
+                      player?.release()
+                      player = null
+                  }
               }
           }
           EOF
@@ -367,6 +376,11 @@ jobs:
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MediaPlaybackService.kt
           package com.itv.mediagroup
 
+          import android.app.Notification
+          import android.app.NotificationChannel
+          import android.app.NotificationManager
+          import android.os.Build
+          import androidx.core.app.NotificationCompat
           import androidx.media3.session.MediaSession
           import androidx.media3.session.MediaSessionService
 
@@ -377,6 +391,22 @@ jobs:
                   super.onCreate()
                   val player = androidx.media3.exoplayer.ExoPlayer.Builder(this).build()
                   mediaSession = MediaSession.Builder(this, player).build()
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      val channelId = "itv_radio_channel"
+                      val channelName = "Radio Background Playback"
+                      val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
+                      val manager = getSystemService(NotificationManager::class.java)
+                      manager?.createNotificationChannel(channel)
+
+                      val notification: Notification = NotificationCompat.Builder(this, channelId)
+                          .setContentTitle("Радіо РИТМ")
+                          .setContentText("Відтворення у фоновому режимі")
+                          .setSmallIcon(android.R.drawable.ic_media_play)
+                          .build()
+
+                      startForeground(1, notification)
+                  }
               }
 
               override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
