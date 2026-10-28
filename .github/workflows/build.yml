@@ -12,6 +12,8 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/itv/mediagroup
           mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/drawable
 
           # 1. settings.gradle.kts
           echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
@@ -49,7 +51,7 @@ jobs:
           }
           EOF
 
-          # 5. Themes
+          # 5. themes.xml
           echo '<resources><style name="Theme.ITVMEDIAGROUP" parent="Theme.MaterialComponents.DayNight.NoActionBar" /></resources>' > app/src/main/res/values/themes.xml
 
           # 6. AndroidManifest.xml
@@ -86,7 +88,92 @@ jobs:
           </manifest>
           EOF
 
-          # 7. MainActivity.kt (з виправленим імпортом ImageView)
+          # 7. activity_main.xml (Класична розмітка для головного екрана)
+          cat << 'EOF' > app/src/main/res/layout/activity_main.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:weightSum="2"
+              android:background="#121212">
+
+              <ImageButton
+                  android:id="@+id/btnTv"
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"
+                  android:layout_margin="20dp"
+                  android:scaleType="fitCenter"
+                  android:background="#E50914"
+                  android:src="@drawable/logo_itv"
+                  android:contentDescription="ITV Media Group" />
+
+              <ImageButton
+                  android:id="@+id/btnRadio"
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"
+                  android:layout_margin="20dp"
+                  android:scaleType="fitCenter"
+                  android:background="#FFFFFF"
+                  android:src="@drawable/logo_ritm"
+                  android:contentDescription="Радіо РИТМ" />
+
+          </LinearLayout>
+          EOF
+
+          # 8. activity_player.xml (Класична розмітка плеєра з кнопками керування)
+          cat << 'EOF' > app/src/main/res/layout/activity_player.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="#000000">
+
+              <androidx.media3.ui.PlayerView
+                  android:id="@+id/playerView"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent" />
+
+              <ImageView
+                  android:id="@+id/radioLogo"
+                  android:layout_width="300dp"
+                  android:layout_height="300dp"
+                  android:layout_gravity="center"
+                  android:src="@drawable/logo_ritm"
+                  android:alpha="0.4"
+                  android:visibility="gone"
+                  android:contentDescription="Radio Logo" />
+
+              <Button
+                  android:id="@+id/btnBack"
+                  android:layout_width="56dp"
+                  android:layout_height="56dp"
+                  android:layout_gravity="top|start"
+                  android:layout_marginStart="24dp"
+                  android:layout_marginTop="24dp"
+                  android:text="◀"
+                  android:textSize="20sp"
+                  android:textColor="#FFFFFF"
+                  android:background="#88000000" />
+
+              <Button
+                  android:id="@+id/btnFullScreen"
+                  android:layout_width="80dp"
+                  android:layout_height="56dp"
+                  android:layout_gravity="top|end"
+                  android:layout_marginEnd="24dp"
+                  android:layout_marginTop="24dp"
+                  android:text="⛶"
+                  android:textSize="18sp"
+                  android:textColor="#FFFFFF"
+                  android:background="#88000000" />
+
+          </FrameLayout>
+          EOF
+
+          # 9. MainActivity.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MainActivity.kt
           package com.itv.mediagroup
 
@@ -96,8 +183,6 @@ jobs:
           import android.os.Build
           import android.os.Bundle
           import android.widget.ImageButton
-          import android.widget.ImageView
-          import android.widget.LinearLayout
           import androidx.appcompat.app.AppCompatActivity
           import androidx.core.app.ActivityCompat
           import androidx.core.content.ContextCompat
@@ -106,6 +191,7 @@ jobs:
           class MainActivity : AppCompatActivity() {
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_main)
 
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                       if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -113,32 +199,13 @@ jobs:
                       }
                   }
 
-                  val root = LinearLayout(this).apply {
-                      orientation = LinearLayout.VERTICAL
-                      layoutParams = LinearLayout.LayoutParams(-1, -1)
-                      weightSum = 2f
-                      setBackgroundColor(0xFF121212.toInt())
+                  findViewById<ImageButton>(R.id.btnTv).setOnClickListener {
+                      startPlayer("https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8", true)
                   }
 
-                  val tvButton = ImageButton(this).apply {
-                      layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40, 40, 40, 20) }
-                      setImageResource(resources.getIdentifier("logo_itv", "drawable", packageName))
-                      scaleType = ImageView.ScaleType.FIT_CENTER
-                      setBackgroundColor(0xFFE50914.toInt())
-                      setOnClickListener { startPlayer("https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8", true) }
+                  findViewById<ImageButton>(R.id.btnRadio).setOnClickListener {
+                      startPlayer("http://31.131.18.66:8000/ritm-mp3-192", false)
                   }
-
-                  val radioButton = ImageButton(this).apply {
-                      layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40, 20, 40, 40) }
-                      setImageResource(resources.getIdentifier("logo_ritm", "drawable", packageName))
-                      scaleType = ImageView.ScaleType.FIT_CENTER
-                      setBackgroundColor(0xFFFFFFFF.toInt())
-                      setOnClickListener { startPlayer("http://31.131.18.66:8000/ritm-mp3-192", false) }
-                  }
-
-                  root.addView(tvButton)
-                  root.addView(radioButton)
-                  setContentView(root)
               }
 
               private fun startPlayer(url: String, isVideo: Boolean) {
@@ -156,7 +223,7 @@ jobs:
           }
           EOF
 
-          # 8. PlayerActivity.kt
+          # 10. PlayerActivity.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/PlayerActivity.kt
           package com.itv.mediagroup
 
@@ -165,13 +232,10 @@ jobs:
           import android.media.AudioManager
           import android.net.Uri
           import android.os.Bundle
-          import android.view.Gravity
           import android.view.MotionEvent
           import android.view.View
-          import android.view.ViewGroup
           import android.view.WindowManager
           import android.widget.Button
-          import android.widget.FrameLayout
           import android.widget.ImageView
           import androidx.appcompat.app.AppCompatActivity
           import androidx.media3.common.MediaItem
@@ -188,74 +252,39 @@ jobs:
               private var baseVolume = 0
               private var baseBrightness = 0.5f
               private var screenWidth = 0
-              private var isFullScreen = true
+              private var isLandscapeFullScreen = false
 
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_player)
 
                   val isVideo = intent.getBooleanExtra("IS_VIDEO", true)
+                  playerView = findViewById(R.id.playerView)
+                  val radioLogo = findViewById<ImageView>(R.id.radioLogo)
+                  val btnBack = findViewById<Button>(R.id.btnBack)
+                  val btnFullScreen = findViewById<Button>(R.id.btnFullScreen)
 
                   if (isVideo) {
                       window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                      radioLogo.visibility = View.GONE
+                  } else {
+                      radioLogo.visibility = View.VISIBLE
+                      btnFullScreen.visibility = View.GONE
                   }
 
                   audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
                   screenWidth = resources.displayMetrics.widthPixels
 
-                  val rootLayout = FrameLayout(this).apply {
-                      layoutParams = ViewGroup.LayoutParams(-1, -1)
-                      setBackgroundColor(0xFF000000.toInt())
-                  }
+                  btnBack.setOnClickListener { finish() }
 
-                  playerView = PlayerView(this).apply {
-                      layoutParams = FrameLayout.LayoutParams(-1, -1)
-                      useController = true
-                  }
-                  rootLayout.addView(playerView)
-
-                  if (!isVideo) {
-                      val logoView = ImageView(this).apply {
-                          layoutParams = FrameLayout.LayoutParams(400, 400, Gravity.CENTER)
-                          setImageResource(resources.getIdentifier("logo_ritm", "drawable", packageName))
-                          alpha = 0.4f
+                  btnFullScreen.setOnClickListener {
+                      isLandscapeFullScreen = !isLandscapeFullScreen
+                      requestedOrientation = if (isLandscapeFullScreen) {
+                          ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                      } else {
+                          ActivityInfo.SCREEN_ORIENTATION_SENSOR
                       }
-                      rootLayout.addView(logoView)
                   }
-
-                  val backButton = Button(this).apply {
-                      layoutParams = FrameLayout.LayoutParams(120, 120, Gravity.TOP or Gravity.START).apply {
-                          setMargins(30, 30, 0, 0)
-                      }
-                      text = "←"
-                      textSize = 24f
-                      setTextColor(0xFFFFFFFF.toInt())
-                      setBackgroundColor(0x55000000.toInt())
-                      setOnClickListener { finish() }
-                  }
-                  rootLayout.addView(backButton)
-
-                  if (isVideo) {
-                      val fullScreenButton = Button(this).apply {
-                          layoutParams = FrameLayout.LayoutParams(160, 120, Gravity.TOP or Gravity.END).apply {
-                              setMargins(0, 30, 30, 0)
-                          }
-                          text = "[ ⛶ ]"
-                          textSize = 16f
-                          setTextColor(0xFFFFFFFF.toInt())
-                          setBackgroundColor(0x55000000.toInt())
-                          setOnClickListener {
-                              isFullScreen = !isFullScreen
-                              requestedOrientation = if (isFullScreen) {
-                                  ActivityInfo.SCREEN_ORIENTATION_SENSOR
-                              } else {
-                                  ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                              }
-                          }
-                      }
-                      rootLayout.addView(fullScreenButton)
-                  }
-
-                  setContentView(rootLayout)
 
                   val url = intent.getStringExtra("URL") ?: return
                   val loadControl = DefaultLoadControl.Builder()
@@ -324,7 +353,7 @@ jobs:
           }
           EOF
 
-          # 9. MediaPlaybackService.kt
+          # 11. MediaPlaybackService.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MediaPlaybackService.kt
           package com.itv.mediagroup
 
