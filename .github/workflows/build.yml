@@ -165,7 +165,7 @@ jobs:
                   android:text="◀"
                   android:textSize="20sp"
                   android:textColor="#FFFFFF"
-                  android:background="#33000000" />
+                  android:background="#1A000000" />
 
               <Button
                   android:id="@+id/btnFullScreen"
@@ -177,7 +177,7 @@ jobs:
                   android:text="⛶"
                   android:textSize="18sp"
                   android:textColor="#FFFFFF"
-                  android:background="#33000000" />
+                  android:background="#1A000000" />
 
           </FrameLayout>
           EOF
@@ -232,7 +232,7 @@ jobs:
           }
           EOF
 
-          # 10. PlayerActivity.kt
+          # 10. PlayerActivity.kt (Зупинка радіо та сервісу при поверненні кнопкою назад)
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/PlayerActivity.kt
           package com.itv.mediagroup
 
@@ -280,7 +280,6 @@ jobs:
                   } else {
                       radioLogo.visibility = View.VISIBLE
                       btnFullScreen.visibility = View.GONE
-                      // Запускаємо фоновий сервіс, щоб радіо грало при вимкненому екрані
                       val serviceIntent = Intent(this, MediaPlaybackService::class.java)
                       if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                           startForegroundService(serviceIntent)
@@ -292,7 +291,16 @@ jobs:
                   audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
                   screenWidth = resources.displayMetrics.widthPixels
 
-                  btnBack.setOnClickListener { finish() }
+                  btnBack.setOnClickListener {
+                      // Повна зупинка плеєра та фонового сервісу при поверненні в меню
+                      player?.stop()
+                      player?.release()
+                      player = null
+                      if (!isVideo) {
+                          stopService(Intent(this, MediaPlaybackService::class.java))
+                      }
+                      finish()
+                  }
 
                   btnFullScreen.setOnClickListener {
                       isLandscapeFullScreen = !isLandscapeFullScreen
@@ -356,6 +364,7 @@ jobs:
               override fun onStop() {
                   super.onStop()
                   if (intent.getBooleanExtra("IS_VIDEO", true)) {
+                      player?.stop()
                       player?.release()
                       player = null
                       finish()
@@ -364,10 +373,9 @@ jobs:
 
               override fun onDestroy() {
                   super.onDestroy()
-                  if (intent.getBooleanExtra("IS_VIDEO", true)) {
-                      player?.release()
-                      player = null
-                  }
+                  player?.stop()
+                  player?.release()
+                  player = null
               }
           }
           EOF
@@ -412,6 +420,7 @@ jobs:
               override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
               override fun onDestroy() {
+                  mediaSession?.player?.stop()
                   mediaSession?.player?.release()
                   mediaSession?.release()
                   mediaSession = null
