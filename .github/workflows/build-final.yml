@@ -1,29 +1,33 @@
-name: Build Fresh Android APK
+name: Build Android APK
 
 on:
-  workflow_dispatch: # Дозволяє запускати збірку вручну кнопкою
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Generate Clean Project Structure
+      - name: Generate Project Structure and Code
         run: |
           mkdir -p app/src/main/java/com/itv/mediagroup
           mkdir -p app/src/main/res/values
           mkdir -p gradle/wrapper
 
-          # 1. Створення конфігурації settings.gradle.kts
+          # 1. settings.gradle.kts
           echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
           echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
           echo 'rootProject.name = "ITVMEDIAGROUP"' >> settings.gradle.kts
           echo 'include(":app")' >> settings.gradle.kts
 
-          # 2. Створення кореневого build.gradle.kts
+          # 2. build.gradle.kts (root)
           echo 'plugins { id("com.android.application") version "8.2.2" apply false; id("org.jetbrains.kotlin.android") version "1.9.22" apply false }' > build.gradle.kts
 
-          # 3. Створення конфігурації модуля app/build.gradle.kts
+          # 3. gradle.properties (Вмикає AndroidX та Jetifier)
+          echo 'android.useAndroidX=true' > gradle.properties
+          echo 'android.enableJetifier=true' >> gradle.properties
+
+          # 4. app/build.gradle.kts
           cat << 'EOF' > app/build.gradle.kts
           plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
           android {
@@ -44,50 +48,98 @@ jobs:
           }
           EOF
 
-          # 4. Створення тем інтерфейсу для уникнення збоїв
+          # 5. Themes
           echo '<resources><style name="Theme.ITVMEDIAGROUP" parent="Theme.MaterialComponents.DayNight.NoActionBar" /></resources>' > app/src/main/res/values/themes.xml
 
-          # 5. Маніфест додатка AndroidManifest.xml
+          # 6. AndroidManifest.xml
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://android.com">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
               <uses-permission android:name="android.permission.WAKE_LOCK" />
+
               <application android:allowBackup="true" android:label="ITVMEDIAGROUP" android:theme="@style/Theme.ITVMEDIAGROUP">
-                  <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity>
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
                   <activity android:name=".PlayerActivity" android:configChanges="orientation|screenSize|layoutDirection|screenLayout" android:exported="false" />
-                  <service android:name=".MediaPlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="false"><intent-filter><action android:name="androidx.media3.session.MediaSessionService" /></intent-filter></service>
+                  <service android:name=".MediaPlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="false">
+                      <intent-filter>
+                          <action android:name="androidx.media3.session.MediaSessionService" />
+                      </intent-filter>
+                  </service>
               </application>
           </manifest>
           EOF
 
-          # 6. Головне меню з двома великими кнопками MainActivity.kt
+          # 7. MainActivity.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MainActivity.kt
           package com.itv.mediagroup
+
           import android.content.Intent
           import android.os.Bundle
           import android.widget.Button
           import android.widget.LinearLayout
           import androidx.appcompat.app.AppCompatActivity
           import kotlin.system.exitProcess
+
           class MainActivity : AppCompatActivity() {
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
-                  val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(-1, -1); weightSum = 2f; setBackgroundColor(0xFF121212.toInt()) }
-                  val tvButton = Button(this).apply { layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40,40,40,20) }; text = "ITV Media Group\n(Телебачення)"; textSize = 22f; setTextColor(0xFFFFFFFF.toInt()); setBackgroundColor(0xFFE50914.toInt()); setOnClickListener { startPlayer("https://live-tv.cloud", true) } }
-                  val radioButton = Button(this).apply { layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40,20,40,40) }; text = "Радіо РИТМ\n(FM)"; textSize = 22f; setTextColor(0xFF000000.toInt()); setBackgroundColor(0xFFFFFFFF.toInt()); setOnClickListener { startPlayer("http://31.131.18", false) } }
-                  root.addView(tvButton); root.addView(radioButton); setContentView(root)
+                  val root = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      layoutParams = LinearLayout.LayoutParams(-1, -1)
+                      weightSum = 2f
+                      setBackgroundColor(0xFF121212.toInt())
+                  }
+
+                  val tvButton = Button(this).apply {
+                      layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40, 40, 40, 20) }
+                      text = "ITV Media Group\n(Телебачення)"
+                      textSize = 22f
+                      setTextColor(0xFFFFFFFF.toInt())
+                      setBackgroundColor(0xFFE50914.toInt())
+                      setOnClickListener { startPlayer("https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8", true) }
+                  }
+
+                  val radioButton = Button(this).apply {
+                      layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(40, 20, 40, 40) }
+                      text = "Радіо РИТМ\n(FM)"
+                      textSize = 22f
+                      setTextColor(0xFF000000.toInt())
+                      setBackgroundColor(0xFFFFFFFF.toInt())
+                      setOnClickListener { startPlayer("http://31.131.18.66:8000/ritm-mp3-192", false) }
+                  }
+
+                  root.addView(tvButton)
+                  root.addView(radioButton)
+                  setContentView(root)
               }
-              private fun startPlayer(url: String, isVideo: Boolean) { startActivity(Intent(this, PlayerActivity::class.java).apply { putExtra("URL", url); putExtra("IS_VIDEO", isVideo) }) }
-              override fun onDestroy() { super.onDestroy(); exitProcess(0) }
+
+              private fun startPlayer(url: String, isVideo: Boolean) {
+                  val intent = Intent(this, PlayerActivity::class.java).apply {
+                      putExtra("URL", url)
+                      putExtra("IS_VIDEO", isVideo)
+                  }
+                  startActivity(intent)
+              }
+
+              override fun onDestroy() {
+                  super.onDestroy()
+                  exitProcess(0)
+              }
           }
           EOF
 
-          # 7. Екран медіаплеєра з буфером 7 сек та жестами PlayerActivity.kt
+          # 8. PlayerActivity.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/PlayerActivity.kt
           package com.itv.mediagroup
+
           import android.content.Context
           import android.media.AudioManager
           import android.net.Uri
@@ -100,69 +152,147 @@ jobs:
           import androidx.media3.exoplayer.DefaultLoadControl
           import androidx.media3.exoplayer.ExoPlayer
           import androidx.media3.ui.PlayerView
+
           class PlayerActivity : AppCompatActivity() {
               private var player: ExoPlayer? = null
               private lateinit var playerView: PlayerView
               private lateinit var audioManager: AudioManager
-              private var startX = 0f; private var startY = 0f; private var baseVolume = 0; private var baseBrightness = 0.5f; private var screenWidth = 0
+              private var startX = 0f
+              private var startY = 0f
+              private var baseVolume = 0
+              private var baseBrightness = 0.5f
+              private var screenWidth = 0
+
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
                   window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                  window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+                  window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN 
+                          or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+
                   audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
                   screenWidth = resources.displayMetrics.widthPixels
-                  playerView = PlayerView(this).apply { layoutParams = WindowManager.LayoutParams(-1, -1); useController = true }
+
+                  playerView = PlayerView(this).apply {
+                      layoutParams = WindowManager.LayoutParams(-1, -1)
+                      useController = true
+                  }
                   setContentView(playerView)
+
                   val url = intent.getStringExtra("URL") ?: return
-                  player = ExoPlayer.Builder(this).setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(7000, 15000, 2500, 5000).build()).build().apply { playerView.player = this; setMediaItem(MediaItem.fromUri(Uri.parse(url))); prepare(); playWhenReady = true }
-                  playerView.setOnTouchListener { _, event -> handleTouch(event); true }
+                  val loadControl = DefaultLoadControl.Builder()
+                      .setBufferDurationsMs(7000, 15000, 2500, 5000)
+                      .build()
+
+                  player = ExoPlayer.Builder(this)
+                      .setLoadControl(loadControl)
+                      .build().apply {
+                          playerView.player = this
+                          setMediaItem(MediaItem.fromUri(Uri.parse(url)))
+                          prepare()
+                          playWhenReady = true
+                      }
+
+                  playerView.setOnTouchListener { _, event ->
+                      handleTouch(event)
+                      true
+                  }
               }
+
               private fun handleTouch(event: MotionEvent) {
                   when (event.action) {
-                      MotionEvent.ACTION_DOWN -> { startX = event.x; startY = event.y; baseVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC); baseBrightness = window.attributes.screenBrightness.let { if (it < 0) 0.5f else it } }
+                      MotionEvent.ACTION_DOWN -> {
+                          startX = event.x
+                          startY = event.y
+                          baseVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                          baseBrightness = window.attributes.screenBrightness.let { if (it < 0) 0.5f else it }
+                      }
                       MotionEvent.ACTION_MOVE -> {
-                          val deltaY = startY - event.y; val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                          val deltaY = startY - event.y
+                          val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                           if (startX < screenWidth / 2) {
-                              var nB = baseBrightness + (deltaY / playerView.height); if (nB > 1.0f) nB = 1.0f; if (nB < 0.01f) nB = 0.01f
-                              val lp = window.attributes; lp.screenBrightness = nB; window.attributes = lp
+                              val deltaBrightness = deltaY / playerView.height
+                              var newBrightness = baseBrightness + deltaBrightness
+                              if (newBrightness > 1.0f) newBrightness = 1.0f
+                              if (newBrightness < 0.01f) newBrightness = 0.01f
+                              val lp = window.attributes
+                              lp.screenBrightness = newBrightness
+                              window.attributes = lp
                           } else {
-                              var nV = baseVolume + ((deltaY / playerView.height) * maxVolume).toInt(); if (nV > maxVolume) nV = maxVolume; if (nV < 0) nV = 0
-                              audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, nV, 0)
+                              val deltaVolume = ((deltaY / playerView.height) * maxVolume).toInt()
+                              var newVolume = baseVolume + deltaVolume
+                              if (newVolume > maxVolume) newVolume = maxVolume
+                              if (newVolume < 0) newVolume = 0
+                              audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
                           }
                       }
                   }
               }
-              override fun onStop() { super.onStop(); if (intent.getBooleanExtra("IS_VIDEO", true)) { player?.release(); player = null; finish() } }
-              override fun onDestroy() { super.onDestroy(); player?.release(); player = null }
+
+              override fun onStop() {
+                  super.onStop()
+                  if (intent.getBooleanExtra("IS_VIDEO", true)) {
+                      player?.release()
+                      player = null
+                      finish()
+                  }
+              }
+
+              override fun onDestroy() {
+                  super.onDestroy()
+                  player?.release()
+                  player = null
+              }
           }
           EOF
 
-          # 8. Сервіс фонового відтворення для Радіо MediaPlaybackService.kt
+          # 9. MediaPlaybackService.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MediaPlaybackService.kt
           package com.itv.mediagroup
+
           import androidx.media3.session.MediaSession
           import androidx.media3.session.MediaSessionService
+
           class MediaPlaybackService : MediaSessionService() {
-          private var mediaSession: MediaSession? = null
-          override fun onCreate() { super.onCreate(); mediaSession = MediaSession.Builder(this, androidx.media3.exoplayer.ExoPlayer.Builder(this).build()).build() }
-          override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
-          override fun onDestroy() { mediaSession?.player?.release(); mediaSession?.release(); mediaSession = null; super.onDestroy() }
+              private var mediaSession: MediaSession? = null
+
+              override fun onCreate() {
+                  super.onCreate()
+                  val player = androidx.media3.exoplayer.ExoPlayer.Builder(this).build()
+                  mediaSession = MediaSession.Builder(this, player).build()
+              }
+
+              override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+
+              override fun onDestroy() {
+                  mediaSession?.player?.release()
+                  mediaSession?.release()
+                  mediaSession = null
+                  super.onDestroy()
+              }
           }
           EOF
 
-          # 9. Налаштування папки обгортки Google Gradle
-          wget -q https://githubusercontent.com
-          wget -q https://githubusercontent.com.bat
-          chmod +x gradlew
-          echo -e "distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists" > gradle/wrapper/gradle-wrapper.properties
+          # 10. Gradle Wrapper properties
+          echo 'distributionBase=GRADLE_USER_HOME' > gradle/wrapper/gradle-wrapper.properties
+          echo 'distributionPath=wrapper/dists' >> gradle/wrapper/gradle-wrapper.properties
+          echo 'distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip' >> gradle/wrapper/gradle-wrapper.properties
+          echo 'zipStoreBase=GRADLE_USER_HOME' >> gradle/wrapper/gradle-wrapper.properties
+          echo 'zipStorePath=wrapper/dists' >> gradle/wrapper/gradle-wrapper.properties
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: Build Debug APK with Gradle
+      - name: Setup Gradle Wrapper
+        run: gradle wrapper
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
         run: ./gradlew assembleDebug
 
       - name: Upload Finished APK
