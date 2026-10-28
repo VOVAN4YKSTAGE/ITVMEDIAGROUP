@@ -27,7 +27,7 @@ jobs:
           echo 'android.enableJetifier=true' >> gradle.properties
           echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> gradle.properties
 
-          # 4. app/build.gradle.kts
+          # 4. app/build.gradle.kts (Додано підтримку HLS для відеопотоків)
           cat << 'EOF' > app/build.gradle.kts
           plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
           android {
@@ -43,6 +43,7 @@ jobs:
               implementation("androidx.appcompat:appcompat:1.6.1")
               implementation("com.google.android.material:material:1.11.0")
               implementation("androidx.media3:media3-exoplayer:1.2.1")
+              implementation("androidx.media3:media3-exoplayer-hls:1.2.1")
               implementation("androidx.media3:media3-ui:1.2.1")
               implementation("androidx.media3:media3-session:1.2.1")
           }
@@ -51,7 +52,7 @@ jobs:
           # 5. Themes
           echo '<resources><style name="Theme.ITVMEDIAGROUP" parent="Theme.MaterialComponents.DayNight.NoActionBar" /></resources>' > app/src/main/res/values/themes.xml
 
-          # 6. AndroidManifest.xml (З виправленням Cleartext для HTTP-радіо та дозволом на сповіщення)
+          # 6. AndroidManifest.xml
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -85,7 +86,7 @@ jobs:
           </manifest>
           EOF
 
-          # 7. MainActivity.kt (з запитом дозволу на сповіщення для Android 13+)
+          # 7. MainActivity.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/MainActivity.kt
           package com.itv.mediagroup
 
@@ -156,7 +157,7 @@ jobs:
           }
           EOF
 
-          # 8. PlayerActivity.kt
+          # 8. PlayerActivity.kt (з виправленим обробітком потоків)
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/PlayerActivity.kt
           package com.itv.mediagroup
 
@@ -231,7 +232,7 @@ jobs:
                           val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                           if (startX < screenWidth / 2) {
                               val deltaBrightness = deltaY / playerView.height
-                          var newBrightness = baseBrightness + deltaBrightness
+                              var newBrightness = baseBrightness + deltaBrightness
                               if (newBrightness > 1.0f) newBrightness = 1.0f
                               if (newBrightness < 0.01f) newBrightness = 0.01f
                               val lp = window.attributes
@@ -309,7 +310,7 @@ jobs:
         run: ./gradlew assembleDebug --warning-mode all
 
       - name: Upload Finished APK
-        uses: actions/upload-artifact@v4
+        uses:-actions/upload-artifact@v4
         with:
           name: ITVMEDIAGROUP-app
           path: app/build/outputs/apk/debug/app-debug.apk
