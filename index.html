@@ -8,7 +8,7 @@
     <!-- Налаштування для PWA та iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ITV & Ritm">
+    <meta name="apple-mobile-web-app-title" content="ITV Media Group">
     <link rel="apple-touch-icon" href="ic_launcher.png">
     <link rel="manifest" href="manifest.json">
 
@@ -30,7 +30,7 @@
         }
         .btn-media {
             flex: 1;
-            margin: 15px;
+            margin: 20px;
             border: none;
             border-radius: 15px;
             display: flex;
@@ -44,9 +44,8 @@
             transform: scale(0.98);
         }
         .btn-tv { background-color: #E50914; }
-        .btn-radio { background-color: #FFFFFF; }
         
-        /* Автоматичне адаптивне масштабування логотипів для ПК та мобільних */
+        /* Автоматичне адаптивне масштабування логотипу телебачення для ПК та мобільних */
         .btn-media img {
             width: 100%;
             height: 100%;
@@ -63,7 +62,7 @@
             background: #000;
             z-index: 100;
         }
-        video, audio {
+        video {
             width: 100%;
             height: 100%;
             object-fit: contain;
@@ -72,7 +71,7 @@
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.4);
             color: white;
             border: none;
             border-radius: 50%;
@@ -81,90 +80,49 @@
             z-index: 101;
             cursor: pointer;
         }
-        
-        /* Автоматичне адаптивне лого радіо в режимі відтворення */
-        .radio-bg-logo {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 40vw; 
-            height: 40vw;
-            max-width: 250px;
-            max-height: 250px;
-            object-fit: contain;
-            opacity: 0.4;
-            pointer-events: none;
-        }
     </style>
     <!-- Підключаємо HLS.js для відтворення .m3u8 потоків -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
-    <!-- Головне меню -->
+    <!-- Головне меню (лише Телебачення) -->
     <div class="menu-container" id="main-menu">
-        <button class="btn-media btn-tv" onclick="openPlayer('tv', 'https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8')">
+        <button class="btn-media btn-tv" onclick="openPlayer('https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8')">
             <img src="logo_itv.png" alt="ITV Media Group">
-        </button>
-        <button class="btn-media btn-radio" onclick="openPlayer('radio', 'http://31.131.18.66:8000/ritm-mp3-192')">
-            <img src="logo_ritm.png" alt="Радіо Ритм">
         </button>
     </div>
 
     <!-- Екран плеєра -->
     <div id="player-screen">
         <button class="back-btn" onclick="closePlayer()">◀</button>
-        <img id="radioLogoView" class="radio-bg-logo" src="logo_ritm.png" style="display: none;">
         <video id="videoPlayer" controls playsinline></video>
-        <audio id="audioPlayer" controls playsinline></audio>
     </div>
 
     <script>
         const mainMenu = document.getElementById('main-menu');
         const playerScreen = document.getElementById('player-screen');
         const video = document.getElementById('videoPlayer');
-        const audio = document.getElementById('audioPlayer');
-        const radioLogoView = document.getElementById('radioLogoView');
         let hls = null;
 
-        function openPlayer(type, url) {
+        function openPlayer(url) {
             mainMenu.style.display = 'none';
             playerScreen.style.display = 'block';
 
-            if (type === 'tv') {
-                video.style.display = 'block';
-                audio.style.display = 'none';
-                radioLogoView.style.display = 'none';
-
-                if (Hls.isSupported()) {
-                    hls = new Hls({ maxBufferLength: 30, liveSyncDurationCount: 3 });
-                    hls.loadSource(url);
-                    hls.attachMedia(video);
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(e => console.log(e)); });
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    video.src = url;
-                    video.addEventListener('loadedmetadata', () => { video.play().catch(e => console.log(e)); });
-                }
-            } else {
-                video.style.display = 'none';
-                audio.style.display = 'block';
-                radioLogoView.style.display = 'block';
-
-                audio.pause();
-                audio.src = "";
-                audio.src = url;
-                audio.load();
-                audio.play().catch(error => {
-                    console.log("Помилка відтворення аудіо:", error);
-                });
+            if (Hls.isSupported()) {
+                hls = new Hls({ maxBufferLength: 30, liveSyncDurationCount: 3 });
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(e => console.log(e)); });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', () => { video.play().catch(e => console.log(e)); });
             }
         }
 
         function closePlayer() {
             video.pause();
             video.src = "";
-            audio.pause();
-            audio.src = "";
             if (hls) {
                 hls.destroy();
                 hls = null;
