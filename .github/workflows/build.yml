@@ -37,13 +37,13 @@ jobs:
           echo 'android.enableJetifier=true' >> gradle.properties
           echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> gradle.properties
 
-          # 4. app/build.gradle.kts
+          # 4. app/build.gradle.kts (Фікс для Android 6.0 - знижено до API 23)
           cat << 'EOF' > app/build.gradle.kts
           plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
           android {
               namespace = "com.itv.mediagroup"
               compileSdk = 34
-              defaultConfig { applicationId = "com.itv.mediagroup"; minSdk = 21; targetSdk = 34; versionCode = 1; versionName = "1.0" }
+              defaultConfig { applicationId = "com.itv.mediagroup"; minSdk = 23; targetSdk = 34; versionCode = 1; versionName = "1.0" }
               buildTypes { release { isMinifyEnabled = false } }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
               kotlinOptions { jvmTarget = "17" }
@@ -52,10 +52,10 @@ jobs:
               implementation("androidx.core:core-ktx:1.12.0")
               implementation("androidx.appcompat:appcompat:1.6.1")
               implementation("com.google.android.material:material:1.11.0")
-              implementation("androidx.media3:media3-exoplayer:1.2.1")
-              implementation("androidx.media3:media3-exoplayer-hls:1.2.1")
-              implementation("androidx.media3:media3-ui:1.2.1")
-              implementation("androidx.media3:media3-session:1.2.1")
+              implementation("androidx.media3:media3-exoplayer:1.1.1")
+              implementation("androidx.media3:media3-exoplayer-hls:1.1.1")
+              implementation("androidx.media3:media3-ui:1.1.1")
+              implementation("androidx.media3:media3-session:1.1.1")
           }
           EOF
 
@@ -132,7 +132,7 @@ jobs:
           </LinearLayout>
           EOF
 
-          # 8. activity_player.xml (Більш прозорі кнопки)
+          # 8. activity_player.xml
           cat << 'EOF' > app/src/main/res/layout/activity_player.xml
           <?xml version="1.0" encoding="utf-8"?>
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -232,7 +232,7 @@ jobs:
           }
           EOF
 
-          # 10. PlayerActivity.kt (Зупинка радіо та сервісу при поверненні кнопкою назад)
+          # 10. PlayerActivity.kt
           cat << 'EOF' > app/src/main/java/com/itv/mediagroup/PlayerActivity.kt
           package com.itv.mediagroup
 
@@ -292,7 +292,6 @@ jobs:
                   screenWidth = resources.displayMetrics.widthPixels
 
                   btnBack.setOnClickListener {
-                      // Повна зупинка плеєра та фонового сервісу при поверненні в меню
                       player?.stop()
                       player?.release()
                       player = null
@@ -400,22 +399,22 @@ jobs:
                   val player = androidx.media3.exoplayer.ExoPlayer.Builder(this).build()
                   mediaSession = MediaSession.Builder(this, player).build()
 
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      val channelId = "itv_radio_channel"
-                      val channelName = "Radio Background Playback"
-                      val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
-                      val manager = getSystemService(NotificationManager::class.java)
-                      manager?.createNotificationChannel(channel)
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                  val channelId = "itv_radio_channel"
+                  val channelName = "Radio Background Playback"
+                  val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
+                  val manager = getSystemService(NotificationManager::class.java)
+                  manager?.createNotificationChannel(channel)
 
-                      val notification: Notification = NotificationCompat.Builder(this, channelId)
-                          .setContentTitle("Радіо РИТМ")
-                          .setContentText("Відтворення у фоновому режимі")
-                          .setSmallIcon(android.R.drawable.ic_media_play)
-                          .build()
+                  val notification: Notification = NotificationCompat.Builder(this, channelId)
+                      .setContentTitle("Радіо РИТМ")
+                      .setContentText("Відтворення у фоновому режимі")
+                      .setSmallIcon(android.R.drawable.ic_media_play)
+                      .build()
 
-                      startForeground(1, notification)
-                  }
+                  startForeground(1, notification)
               }
+          }
 
               override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
