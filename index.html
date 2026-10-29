@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ITVMEDIAGROUP</title>
     
-    <!-- Налаштування для PWA та iOS -->
+    <!-- Налаштування для PWA на iOS (щоб відкривалося без рамок браузера) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ITV Media Group">
+    <meta name="apple-mobile-web-app-title" content="ITV Media">
     <link rel="apple-touch-icon" href="ic_launcher.png">
     <link rel="manifest" href="manifest.json">
 
@@ -21,6 +21,7 @@
             background-color: #121212;
             font-family: Arial, sans-serif;
             overflow: hidden;
+            -webkit-user-select: none;
         }
         .menu-container {
             display: flex;
@@ -37,15 +38,9 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            background-color: #E50914;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            transition: transform 0.1s ease;
         }
-        .btn-media:active {
-            transform: scale(0.98);
-        }
-        .btn-tv { background-color: #E50914; }
-        
-        /* Автоматичне адаптивне масштабування логотипу телебачення для ПК та мобільних */
         .btn-media img {
             width: 100%;
             height: 100%;
@@ -69,34 +64,38 @@
         }
         .back-btn {
             position: absolute;
-            top: 20px;
+            top: 25px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.6);
             color: white;
             border: none;
             border-radius: 50%;
-            width: 50px; height: 50px;
-            font-size: 24px;
+            width: 45px; height: 45px;
+            font-size: 20px;
             z-index: 101;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
     </style>
-    <!-- Підключаємо HLS.js для відтворення .m3u8 потоків -->
+    <!-- Підключаємо HLS.js для підтримки потоків на всіх пристроях -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
-    <!-- Головне меню (лише Телебачення) -->
+    <!-- Головне меню -->
     <div class="menu-container" id="main-menu">
-        <button class="btn-media btn-tv" onclick="openPlayer('https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8')">
+        <button class="btn-media" onclick="openPlayer('https://cdn10.live-tv.cloud/itvrv/abr-lq/itvrv/480p/chunks.m3u8')">
             <img src="logo_itv.png" alt="ITV Media Group">
         </button>
     </div>
 
     <!-- Екран плеєра -->
     <div id="player-screen">
-        <button class="back-btn" onclick="closePlayer()">◀</button>
-        <video id="videoPlayer" controls playsinline></video>
+        <button class="back-btn" onclick="closePlayer()">✕</button>
+        <!-- Головний атрибут для iOS: playsinline та webkit-playsinline -->
+        <video id="videoPlayer" controls autoplay playsinline webkit-playsinline></video>
     </div>
 
     <script>
@@ -109,14 +108,24 @@
             mainMenu.style.display = 'none';
             playerScreen.style.display = 'block';
 
-            if (Hls.isSupported()) {
+            // На iOS вбудований Safari чудово розуміє HLS напряму без сторонніх бібліотек
+            if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', () => {
+                    video.play().catch(err => console.log("Помилка автоплею iOS:", err));
+                });
+            } 
+            // Для решти браузерів використовуємо Hls.js
+            else if (Hls.isSupported()) {
+                if (hls) {
+                    hls.destroy();
+                }
                 hls = new Hls({ maxBufferLength: 30, liveSyncDurationCount: 3 });
                 hls.loadSource(url);
                 hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(e => console.log(e)); });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = url;
-                video.addEventListener('loadedmetadata', () => { video.play().catch(e => console.log(e)); });
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play().catch(err => console.log("Помилка старту HLS:", err));
+                });
             }
         }
 
@@ -131,7 +140,7 @@
             mainMenu.style.display = 'flex';
         }
 
-        // Реєстрація Service Worker для PWA
+        // Реєстрація сервіс-воркера для PWA
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
         }
