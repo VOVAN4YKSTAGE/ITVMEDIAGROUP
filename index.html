@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ITVMEDIAGROUP</title>
     
-    <!-- Налаштування для iOS PWA -->
+    <!-- Налаштування для PWA та iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ITV & Ritm">
@@ -38,7 +38,6 @@
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            /* Плавна анімація при натисканні */
             transition: transform 0.1s ease;
         }
         .btn-media:active {
@@ -97,7 +96,7 @@
             pointer-events: none;
         }
     </style>
-    <!-- Підключаємо бібліотеку HLS.js для відтворення .m3u8 потоків на iOS/Safari -->
+    <!-- Підключаємо HLS.js для відтворення .m3u8 потоків -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -117,7 +116,7 @@
         <button class="back-btn" onclick="closePlayer()">◀</button>
         <img id="radioLogoView" class="radio-bg-logo" src="logo_ritm.png" style="display: none;">
         <video id="videoPlayer" controls playsinline></video>
-        <audio id="audioPlayer"></audio>
+        <audio id="audioPlayer" controls playsinline></audio>
     </div>
 
     <script>
@@ -141,18 +140,23 @@
                     hls = new Hls({ maxBufferLength: 30, liveSyncDurationCount: 3 });
                     hls.loadSource(url);
                     hls.attachMedia(video);
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play(); });
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(e => console.log(e)); });
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     video.src = url;
-                    video.addEventListener('loadedmetadata', () => { video.play(); });
+                    video.addEventListener('loadedmetadata', () => { video.play().catch(e => console.log(e)); });
                 }
             } else {
                 video.style.display = 'none';
                 audio.style.display = 'block';
                 radioLogoView.style.display = 'block';
 
+                audio.pause();
+                audio.src = "";
                 audio.src = url;
-                audio.play();
+                audio.load();
+                audio.play().catch(error => {
+                    console.log("Помилка відтворення аудіо:", error);
+                });
             }
         }
 
@@ -169,9 +173,9 @@
             mainMenu.style.display = 'flex';
         }
 
-        // Реєстрація Service Worker для підтримки PWA
+        // Реєстрація Service Worker для PWA
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
+            navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
         }
     </script>
 </body>
