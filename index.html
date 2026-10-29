@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ITVMEDIAGROUP</title>
     
-    <!-- Налаштування для PWA на iOS (щоб відкривалося без рамок браузера) -->
+    <!-- Налаштування для PWA та iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ITV Media">
+    <meta name="apple-mobile-web-app-title" content="ITV Media Group">
     <link rel="apple-touch-icon" href="ic_launcher.png">
     <link rel="manifest" href="manifest.json">
 
@@ -40,7 +40,13 @@
             cursor: pointer;
             background-color: #E50914;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.1s ease;
         }
+        .btn-media:active {
+            transform: scale(0.98);
+        }
+        
+        /* Автоматичне адаптивне масштабування логотипу для ПК та мобільних */
         .btn-media img {
             width: 100%;
             height: 100%;
@@ -79,7 +85,7 @@
             justify-content: center;
         }
     </style>
-    <!-- Підключаємо HLS.js для підтримки потоків на всіх пристроях -->
+    <!-- Підключаємо HLS.js для відтворення потоків .m3u8 -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -94,7 +100,6 @@
     <!-- Екран плеєра -->
     <div id="player-screen">
         <button class="back-btn" onclick="closePlayer()">✕</button>
-        <!-- Головний атрибут для iOS: playsinline та webkit-playsinline -->
         <video id="videoPlayer" controls autoplay playsinline webkit-playsinline></video>
     </div>
 
@@ -108,14 +113,14 @@
             mainMenu.style.display = 'none';
             playerScreen.style.display = 'block';
 
-            // На iOS вбудований Safari чудово розуміє HLS напряму без сторонніх бібліотек
+            // На iOS вбудований Safari відтворює потоки нативно
             if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = url;
                 video.addEventListener('loadedmetadata', () => {
-                    video.play().catch(err => console.log("Помилка автоплею iOS:", err));
+                    video.play().catch(err => console.log("Помилка автоплею:", err));
                 });
             } 
-            // Для решти браузерів використовуємо Hls.js
+            // Для решти пристроїв використовуємо Hls.js
             else if (Hls.isSupported()) {
                 if (hls) {
                     hls.destroy();
@@ -124,7 +129,7 @@
                 hls.loadSource(url);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    video.play().catch(err => console.log("Помилка старту HLS:", err));
+                    video.play().catch(err => console.log("Помилка HLS:", err));
                 });
             }
         }
